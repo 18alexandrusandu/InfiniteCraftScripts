@@ -551,6 +551,7 @@
             localFolder.style.overflowY = "scroll";
             localFolder.style.backgroundColor = window.getComputedStyle(document.querySelector(".container")).getPropertyValue("--background-color").trim();
             localFolder.style.zIndex = "1";
+            localFolder.style.overflowX="scroll";
 
             currentFolder = localFolder;
 
@@ -574,7 +575,7 @@
             currentFolderName.style.zIndex = "2";
 
             currentFolderName.style.width = "100%";
-            currentFolderName.style.height = "30px";
+            currentFolderName.style.height = "40px";
             currentFolderName.style.position = "sticky";
             currentFolderName.style.top = "0px";
             let cleanP = document.createElement("span");
@@ -649,7 +650,7 @@
             minimizeMaximize.addEventListener("click",
                 function() {
                     if (localFolder.style.height == "200px") {
-                        localFolder.style.height = "30px";
+                        localFolder.style.height = "60px";
                         minimizeMaximize.textContent = "🗖";
 
                     } else {
@@ -1097,7 +1098,6 @@
         console.log("Welcome to themes");
         injectCSS();
         initFolders();
-
         initTheAlphabeth();
         set_up_Folder_create_button();
 
