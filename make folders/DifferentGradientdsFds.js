@@ -1,0 +1,1061 @@
+ // ==UserScript==
+       // @name        Chromatic Themes Moving Smoother and Sparkles Fixed
+       // @namespace   Violentmonkey Scripts
+       // @match       https://neal.fun/infinite-craft/*
+       // @grant       none
+       // @run-at	document-end
+       // @require 	https://unpkg.com/wanakana
+       // @require https://raw.githubusercontent.com/surferseo/intl-segmenter-polyfill/master/dist/bundled.js
+       // @version     1.0
+       // @author      Alexander_Andercou
+       // @description 4/29/2024, 7:40:08 AM
+       // ==/UserScript==
+      (function() {
+        var EMOJIS      = {}
+        let modes       = ["None","Emoji simple","Emoji gradient","Emoji blend","One color","Saved Color","Reset Colors","Test","Soup Alphabeth","Moving Gradients"];
+        let mode        = 1;
+        const NoneMode=0;
+        const EmojiGradientSimpleMode=2,EmojiMovingGradientMode=9;
+        const ChooseOneColorMode=4,SavedColorMode=5;
+        let hidden      = true;
+        let dropMenu    = null;
+        let ThemeButton = null;
+        let oneColor    = window.getComputedStyle(document.querySelector(".container")).getPropertyValue("--border-color").trim();
+
+
+        LetterColors={ 'A': [0, 127, 255],'B':[139,69,19],'C':[220, 20, 60],'D':[240, 225, 48],
+                      'E': [ 80, 200, 120], 'F': [217,2,125],    'G': [128,128,128],     'H': [223, 115, 255],
+                      'I': [75,0,130],      'J': [	0, 168, 107], 'K': [ 	195, 176, 145], 'L': [220,208,255],
+                      'M': [255,0,144],     'N': [0,0,128],      'O': [255, 165, 0],     'P': [160, 32, 240],
+                      'Q': [ 	81, 65, 79],  'R': [255,0,0],      'S': [250, 128, 114],   'T': [0,128,128],
+                      'U': [4, 55, 242],    'V': [	127, 0, 255], 'W': [255,255,255],     'X': [241, 180, 47],
+                      'Y': [255,255,0],     'Z': [0, 20, 168]
+                      };
+
+
+
+        LetterColorsLight={ 'A': [0, 127, 255],'B':[139,69,19],'C':[220, 20, 60],'D':[240, 225, 48],
+                      'E': [ 80, 200, 120], 'F': [217,2,125],    'G': [128,128,128],     'H': [223, 115, 255],
+                      'I': [75,0,130],      'J': [	0, 168, 107], 'K': [ 	195, 176, 145], 'L': [220,208,255],
+                      'M': [255,0,144],     'N': [0,0,128],      'O': [255, 165, 0],     'P': [160, 32, 240],
+                      'Q': [ 	81, 65, 79],  'R': [255,0,0],      'S': [250, 128, 114],   'T': [0,128,128],
+                      'U': [4, 55, 242],    'V': [	127, 0, 255], 'W': [200,200,200],     'X': [241, 180, 47],
+                      'Y': [255,255,0],     'Z': [0, 20, 168]
+                      };
+
+
+
+
+          function getAvgHex(color, total){
+          return Math.round(color / total)
+            .toString(16)
+            .padStart(2, 0);
+          }
+
+
+          function uniToEmoji(uni) {
+
+         return String.fromCodePoint(uni);
+
+        }
+        function emojiToUni(emoji) {
+
+          return emoji.codePointAt(0);
+
+        }
+
+
+
+           function calculatedAverageColor(emoji)
+           {
+              let   totalPixels = 0;
+              const colors      = {
+                red  : 0,
+                green: 0,
+                blue : 0,
+                alpha: 0
+              };
+              const canvas        = document.createElement("canvas");
+              const ctx           = canvas.getContext("2d");
+              ctx.font      = "30px Arial";
+              ctx.fillStyle = window.getComputedStyle(document.querySelector(".container")).getPropertyValue("--text-color").trim();
+              ctx.fillText(emoji, 0, 28);
+
+              const { data: imageData } = ctx.getImageData(0, 0, 30, 30);
+              for (let i = 0; i < imageData.length; i += 4) {
+                let [r, g, b, a] = imageData.slice(i, i + 4);
+                if (a > 50) {
+                  totalPixels  += 1;
+                  colors.red   += r;
+                  colors.green += g;
+                  colors.blue  += b;
+                  colors.alpha += a;
+                }
+              }
+              const r = getAvgHex(colors.red, totalPixels);
+              const g = getAvgHex(colors.green, totalPixels);
+              const b = getAvgHex(colors.blue, totalPixels);
+
+              return "#" + r + g + b;
+
+
+           }
+          function calculatedAverageAndMaxFreqColor(emoji)
+           {
+              let   totalPixels = 0;
+              const colors      = {
+                red  : 0,
+                green: 0,
+                blue : 0,
+                alpha: 0
+              };
+              const canvas        = document.createElement("canvas");
+              const ctx           = canvas.getContext("2d");
+              ctx.font      = "30px Arial";
+              ctx.fillStyle = window.getComputedStyle(document.querySelector(".container")).getPropertyValue("--text-color").trim();
+              ctx.fillText(emoji, 0, 28);
+              var colors2 = [];
+              var freq    = [];
+              const { data: imageData } = ctx.getImageData(0, 0, 30, 30);
+
+              for (let i = 0; i < imageData.length; i += 4) {
+                let [r, g, b, a] = imageData.slice(i, i + 4);
+                if (a > 50) {
+
+                    let JColors = JSON.stringify(colors2);
+                    let JColor  = JSON.stringify([r,g,b]);
+
+
+                    if(JColors.indexOf(JColor)>-1)
+                      {
+                       let index = 0;
+                        for(let [rc,gc,bc] of colors2)
+                        {
+                           if(r==rc && g==gc && b==bc)
+                            break;
+                          index += 1;
+
+                        }
+
+
+                         freq[index] += 1;
+                      }
+                       else
+                     {
+                          if(r!=0 || g!=0 || b!=0)
+                            {
+                           colors2.push([r,g,b]);
+                           freq.push(1);
+                            }
+
+                      }
+
+
+
+                  totalPixels  += 1;
+                  colors.red   += r;
+                  colors.green += g;
+                  colors.blue  += b;
+                  colors.alpha += a;
+                }
+              }
+              const r = getAvgHex(colors.red, totalPixels);
+              const g = getAvgHex(colors.green, totalPixels);
+              const b = getAvgHex(colors.blue, totalPixels);
+              const indexOfLargestValue = freq. reduce((maxIndex, currentValue, currentIndex, array) => currentValue > array[maxIndex] ? currentIndex : maxIndex, 0);
+              const secondColor = colors2[indexOfLargestValue];
+
+
+              return ["#" + r + g + b,"rgb(" +secondColor[0].toString()+ ","+secondColor[1].toString()+","+secondColor[2].toString()+")"];
+
+
+           }
+
+
+
+
+
+
+          function getEmojiColors(emoji)
+          {
+
+             var code = emojiToUni(emoji);
+            if(! (code in EMOJIS) )
+             {
+               EMOJIS[code] = ["",""];
+
+                      if(mode== EmojiGradientSimpleMode  || mode==EmojiMovingGradientMode)
+                    {
+                     EMOJIS[code] = calculatedAverageAndMaxFreqColor(emoji);
+
+                    }else
+                    {
+                     EMOJIS[code][0] = calculatedAverageColor(emoji);
+                    }
+
+              localStorage.setItem("emojiColors",JSON.stringify(EMOJIS));
+
+             }else
+               {
+                  if((mode== EmojiGradientSimpleMode  || mode==EmojiMovingGradientMode ) && EMOJIS[code][1]=="")
+                    {
+                      EMOJIS[code] = calculatedAverageAndMaxFreqColor(emoji);
+                      localStorage.setItem("emojiColors",JSON.stringify(EMOJIS));
+
+                    }
+
+               }
+
+            console.log("code of emiji:",EMOJIS[code]);
+            return  EMOJIS[code];
+
+          }
+
+          function applyOnOneElement(node)
+           {
+
+             const emojiSpan = node.querySelector(".instance-emoji");
+             const emoji     = emojiSpan.textContent;
+             let   colors    = getEmojiColors(emoji);
+             let   emojiAverageColor     = colors[0];
+
+
+
+         if(node.classList.contains("instance-discovered"))
+             {
+
+             try{
+
+
+              let text_div      = node.querySelector(".instance-discovered-text");
+              let discovery_img = text_div.querySelector(".instance-discovered-emoji");
+
+             discovery_img.src=`data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50"
+             width="10px" height="10px"><path fill="%23`+ emojiAverageColor.substring(1) +`" d="M49.306 26.548l-11.24-3.613-3.613-11.241C34.319
+             11.28 33.935 11 33.5 11s-.819.28-.952.694l-3.613 11.241-11.24 3.613C17.28 26.681 17 27.065 17
+             27.5s.28.819.694.952l11.24 3.613 3.613 11.241C32.681 43.72 33.065 44 33.5 44s.819-.28.952-.694l3.613-11.241
+             11.24-3.613C49.72 28.319 50 27.935 50 27.5S49.72 26.681 49.306 26.548zM1.684 13.949l7.776 2.592 2.592 7.776C12.188 24.725
+             12.569 25 13 25s.813-.275.948-.684l2.592-7.776 7.776-2.592C24.725 13.813 25 13.431 25 13s-.275-.813-.684-.949L16.54
+             9.459l-2.592-7.776C13.813 1.275 13.431 1 13 1s-.813.275-.948.684L9.46 9.459l-7.776 2.592C1.275 12.188 1 12.569
+             1 13S1.275 13.813 1.684 13.949zM17.316 39.05l-5.526-1.842-1.842-5.524C9.813 31.276 9.431 31 9 31s-.813.275-.948.684L6.21
+             37.208.685 39.05c-.408.136-.684.518-.684.949s.275.813.684.949l5.526 1.842 1.841 5.524C8.188 48.721 8.569 48.997 9
+             48.997s.813-.275.948-.684l1.842-5.524 5.526-1.842C17.725 40.811 18 40.429 18 39.999S17.725 39.186 17.316 39.05z"/></svg>`;
+             text_div.style.setProperty("--second-color",emojiAverageColor);
+             text_div.style.setProperty("--main-color","color-mix( in srgb,"+emojiAverageColor+",#fff 60%)");
+            }
+            catch(err)
+            {
+              console.log(err);
+            }
+
+
+              }
+
+          if(node.querySelector(".addspan"))
+          {
+
+            for(const spn of node.querySelectorAll(".addspan"))
+            {
+            spn.style.color = window.getComputedStyle(document.querySelector(".container")).getPropertyValue("--text-color").trim();
+            }
+
+          }
+
+          if(node.classList.contains("noneStyle"))
+          {
+           node.classList.remove("noneStyle");
+          }
+
+          node.style.borderRadius = "10px";
+
+
+         switch(mode)
+             {
+
+               case 0:
+                 {
+                        let defaultBorderColor         = window.getComputedStyle(document.querySelector(".container")).getPropertyValue("--border-color").trim();
+                        node.style.borderColor     = defaultBorderColor;
+                        node.style.borderImage     = "";
+                        node.style.backgroundImage = "";
+                        node.style.borderWidth     = "2px";
+                        node.style.borderRadius    = "5px";
+                        node.style.setProperty("--shadow-rgb","transparent" );
+
+
+                        if(!node.classList.contains("noneStyle"))
+                    {
+                       node.classList.add("noneStyle");
+                    }
+
+                 };
+
+              break;
+               case 1:
+                 {
+
+                  node.style.borderImage     = "";
+                  node.style.backgroundImage = "";
+                  node.style.borderColor     = emojiAverageColor;
+                  node.style.borderWidth     = "2px";
+                  node.style.setProperty("--shadow-rgb",emojiAverageColor );
+
+
+                 };
+
+
+                 break;
+
+
+               case 2:
+                 {
+
+                    node.style.borderImage  = "linear-gradient(to right ,"+colors[0]+","+colors[1]+") 2 ";
+                    node.style.borderWidth  = "3px";
+                    node.style.borderColor  = "transparent";
+                    node.style.borderRadius = "0px";
+                    node.style.setProperty("--shadow-rgb",emojiAverageColor);
+
+
+                 };
+                  break;
+               case 3:
+                 {
+
+                     let   defaultBorderColor = window.getComputedStyle(document.querySelector(".container")).getPropertyValue("--border-color").trim();
+                     const styletouse         = "color-mix( in srgb, "+emojiAverageColor+" 50% , "+defaultBorderColor+" 50% )";
+                     node.style.borderColor = styletouse;
+                     node.style.setProperty("--shadow-rgb",styletouse );
+                     node.style.borderImage     = "";
+                     node.style.backgroundImage = "";
+                     node.style.borderWidth = "3px";
+
+                  };
+                 break;
+
+               case 4:
+                {
+
+
+                    node.style.borderImage     = "";
+                    node.style.backgroundImage = "";
+                    node.style.borderColor     = oneColor;
+                    node.style.borderWidth     = "2px";
+                    node.style.setProperty("--shadow-rgb",oneColor);
+
+               }
+               case 5:
+                {
+
+                    node.style.backgroundImage = "";
+                    node.style.borderImage     = "";
+                    node.style.borderColor     = oneColor;
+                    node.style.borderWidth     = "2px";
+                    node.style.setProperty("--shadow-rgb",oneColor);
+
+               };
+                 break;
+             case 6:
+             {
+               mode = NoneMode;
+               localStorage.removeItem("emojiColors");
+               EMOJIS = {};
+               applyOnOneElement(node);
+               dropMenu.selectedIndex = NoneMode;
+             }
+                 break;
+            case 7:
+                 {
+                   console.log("TEST THEME");
+
+                 }break;
+            case 8:
+                 {
+
+                            node.style.borderImage = "";
+
+                            let spanCont          = node.querySelector(".instance-emoji").textContent;
+                            let discovered        = node.querySelector(".instance-discovered-text");
+                            let parentText        = node.textContent;
+                            let instance_text_div = parentText.replace(spanCont,"");
+
+
+                           if(discovered)
+                             {
+                               instance_text_div = instance_text_div.replace(discovered.textContent,"");
+                             }
+
+                            instance_text_div = instance_text_div.trim()
+                            let saveText          = instance_text_div;
+                            instance_text_div = instance_text_div.trim().toUpperCase();
+                            console.log("text:",instance_text_div);
+                            let startColor = [0,0,0];
+                            let nrChars    = 0;
+                            console.log("start word");
+
+                            let alphabeth = false;
+                            for (const char of instance_text_div) {
+
+                            if(char>='A' && char<='Z')
+                               {
+                                   nrChars += 1;
+                                   console.log(char);
+                                   console.log("in base:",LetterColors[char])
+
+                                 if(document.querySelector(".container").classList.contains("dark-mode"))
+                                   {
+                                   startColor[0] = startColor[0]+LetterColors[char][0];
+                                   startColor[1] = startColor[1]+LetterColors[char][1];
+                                   startColor[2] = startColor[2]+LetterColors[char][2];
+                                   }
+                                 else
+                                   {
+                                   startColor[0] = startColor[0]+LetterColorsLight[char][0];
+                                   startColor[1] = startColor[1]+LetterColorsLight[char][1];
+                                   startColor[2] = startColor[2]+LetterColorsLight[char][2];
+
+                                   }
+
+                              }else
+                                if(char!='(' && char!=')'  &&  char!=',' && char!=' ' && char!='#' && char!='*')
+                                 {
+                                   alphabeth = true;
+                                 }
+
+
+
+                        }
+
+                    const r = Math.round(startColor[0]/nrChars);
+                    const g = Math.round(startColor[1]/nrChars);
+                    const b = Math.round(startColor[2]/nrChars);
+                    const averageLetterColor = "rgb(" + r.toString()+","+g.toString()+","+b.toString()+")";
+
+                    console.log("AverageColorLetters:",averageLetterColor);
+                    node.style.borderImage     = "";
+                    node.style.backgroundImage = "";
+
+
+                  if(alphabeth){
+
+                  node.style.borderColor = averageLetterColor;
+                  node.style.borderWidth = "2px";
+                  node.style.setProperty("--shadow-rgb",averageLetterColor );
+                  let defaultTextColor = window.getComputedStyle(document.querySelector(".container")).getPropertyValue("--text-color").trim();
+                  let quotesColor      = "color-mix(in srgb,"+averageLetterColor +", "+defaultTextColor+" 60%"+")";
+
+
+               if(!node.querySelector(".addspan"))
+                     {
+
+                  let saveAgainText  = saveText;
+                  let modified       = saveText.replaceAll("\"","<span  class=\"addspan\" , style=\"color:"+quotesColor +";\" >"+'\"'+"</span>");
+                  let text           = node.innerHTML.replaceAll(saveAgainText,modified);
+                      node.innerHTML = text;
+
+                     }else
+                       {
+
+                          for(const spn of node.querySelectorAll(".addspan"))
+
+                            {
+                            spn.style.color = quotesColor;
+                            }
+
+                       }
+
+
+                   }else
+                     {
+
+                         node.style.borderColor = emojiAverageColor;
+                         node.style.borderWidth = "2px";
+                         node.style.setProperty("--shadow-rgb",emojiAverageColor);
+
+                     }
+
+
+                 }break;
+               case 9:
+                 {
+
+                    node.style.setProperty("--bg-angle","-60deg" );
+
+
+
+
+                    if(node.classList.contains("instance-discovered"))
+                    {
+                          node.style.borderImage  = "linear-gradient(var(--bg-angle),"+"rgb(255, 244, 43),"+"rgb( 139, 128, 0),"+"rgb(255, 244, 43),"+"rgb( 139, 128, 0)) 2";
+                          node.style.setProperty("--shadow-rgb","rgb(255, 244, 43)");
+
+                    }else
+                    {
+                         node.style.borderImage  = "linear-gradient(var(--bg-angle),"+emojiAverageColor+","+colors[1]+","+emojiAverageColor+","+colors[1]+") 2";
+                         node.style.setProperty("--shadow-rgb",emojiAverageColor );
+
+                    }
+
+
+
+                    node.style.animation    = "spin 4s  infinite cubic-bezier(0.4,0,0.2,1) running";
+                    node.style.borderWidth  = "4px";
+                    node.style.borderColor  = "transparent";
+                    node.style.borderRadius = "0px";
+
+
+
+                 };
+                  break;
+
+               default:
+                 break;
+
+
+
+
+             }
+
+
+
+           }
+        function applyStyleOnAllElements()
+          {
+              let instances = document.getElementsByClassName("instance");
+             for (const node of instances)
+               {
+                   applyOnOneElement(node);
+
+               }
+
+
+          }
+
+        function switchTheStyle()
+        {
+
+
+             localStorage.setItem("mode_theme",mode.toString());
+
+             if(mode==ChooseOneColorMode)
+             {    try{
+                       let listOfColorButtons = document.querySelectorAll("input[type=color]");
+                     for(let cb of listOfColorButtons)
+                       {
+                         ThemeButton.removeChild(cb);
+
+                       }
+               }
+              catch(error)
+                {
+
+
+                }
+
+
+
+               let input = document.createElement("input");
+               input.setAttribute("type", "color");
+               input.addEventListener("input",function(event)
+             {
+                 oneColor = event.target.value;
+                 localStorage.setItem("saved_color",oneColor.toString());
+                 applyStyleOnAllElements();
+                                            });
+
+
+                ThemeButton.appendChild(input);
+                input.click();
+
+
+             }
+            else
+              {
+              applyStyleOnAllElements();
+               try{
+               if(mode!=SavedColorMode)
+                   {
+                     let listOfColorButtons = document.querySelectorAll("input[type=color]");
+                     for(let cb of listOfColorButtons)
+                       {
+                         ThemeButton.removeChild(cb);
+
+                       }
+
+                   }else
+                     {
+                      let listOfColorButtons = document.querySelectorAll("input[type=color]");
+                      if(listOfColorButtons.length === 0)
+                        {
+
+                       let input = document.createElement("input");
+                       input.setAttribute("type", "color");
+                       input.defaultValue = oneColor;
+                       input.disabled = true;
+                       ThemeButton.appendChild(input);
+
+                        }
+
+
+                     for(let cb of listOfColorButtons)
+                       {
+                       cb.disabled = true;
+                       }
+
+                     }
+
+               }
+                catch(error)
+                {
+
+                }
+
+
+            }
+
+        }
+
+
+
+
+        function doStuffOnInstancesMutation(mutations) {
+                for (const mutation of mutations) {
+                    if (mutation.addedNodes.length > 0) {
+                        for (const node of mutation.addedNodes) {
+
+
+                              if(node.id!="instance-0" && !node.classList.contains("background-instance"))
+                                {
+
+                                     //place div inside.
+                                  let backgroundDiv=document.createElement("div");
+
+                                   backgroundDiv.background="rgb(255,255,255)";
+                                   backgroundDiv.classList.add("background-instance");
+                                   backgroundDiv.position="absolute";
+                                   backgroundDiv.style.zIndex="1";
+                                   node.style.zIndex="5";
+                                   node.appendChild(backgroundDiv);
+
+
+
+                                          applyOnOneElement(node);
+
+                                }
+                        }
+                    }
+                }
+            }
+
+            function initColors() {
+
+                     EMOJIS = {};
+                     if(localStorage.getItem("mode_theme")!=null)
+                       {
+
+                         try{
+                         mode = parseInt(localStorage.getItem("mode_theme"));
+                         }catch(error)
+                         {
+                           mode = NoneMode;
+                         }
+
+
+                         if(mode==ChooseOneColorMode || mode==SavedColorMode)
+                           {
+                             mode     = SavedColorMode;
+                             oneColor = localStorage.getItem("saved_color");
+
+                           }
+                       }else
+                         {
+                           mode =  NoneMode;
+                         }
+
+
+                      if( localStorage.getItem("emojiColors")!=null)
+                      {
+                          EMOJIS = JSON.parse(localStorage.getItem("emojiColors"));
+                      }
+
+
+
+                const instanceObserver = new MutationObserver((mutations) => {
+                    doStuffOnInstancesMutation(mutations);
+                });
+
+                instanceObserver.observe(document.getElementsByClassName("instances")[0], {
+                    childList: true,
+                    subtree  : true,
+
+                });
+
+                const LightModeObserver = new MutationObserver((mutations) => {
+                      switchTheStyle();
+
+
+                });
+                LightModeObserver.observe(document.getElementsByClassName("container")[0], {
+
+                    childList        : false,
+                    subtree          : false,
+                    attributeFilter  : ["class"],
+                    attributeOldValue: true,
+
+                });
+
+
+
+
+
+            }
+
+         function injectCSS()
+      {
+
+        let css=`
+        .instance {
+
+            --bg-angle     : -60deg;
+            --backgroundImg: none;
+            --x-offset     : 0px;
+            --y-offset     : 0px;
+            --radius       : 20px;
+            --spread       : 6.4px;
+            --shadow-rgb   : 0, 255, 255;
+            --opacity      : 30%;
+
+            border-radius: 10px;
+            box-shadow   : 0 0 var(--radius) color-mix(in srgb, var(--shadow-rgb), transparent var(--opacity )),
+            inset 0 0 20px  color-mix(in srgb, var(--shadow-rgb), transparent 70%) ;
+            display: block;
+
+             }
+
+        .instance-discovered {
+            --x-offset        : 0px;
+            --y-offset        : 0px;
+            --radius          : 20px;
+            --spread          : 4px;
+            --shadow-rgb      : rgb( 0, 255, 255);
+            --opacity         : 50%;
+            border-width      : 2px;
+            -webkit-box-shadow: var(--x-offset) var(--y-offset) var(--radius) var(--spread) color-mix(in srgb, var(--shadow-rgb), transparent var(--opacity)),
+             inset 0 0 20px  color-mix(in srgb, var(--shadow-rgb), transparent var(--opacity)) !important;
+            -moz-box-shadow: var(--x-offset) var(--y-offset) var(--radius) var(--spread)  color-mix(in srgb, var(--shadow-rgb), transparent var(--opacity)),
+             inset 0 0 20px color-mix(in srgb, var(--shadow-rgb), transparent var(--opacity)), !important;
+
+            ;
+            box-shadow: var(--x-offset) var(--y-offset) var(--radius) var(--spread) color-mix(in srgb, var(--shadow-rgb), transparent var(--opacity)), !important
+            ,
+            inset 0 0 20px color-mix(in srgb, var(--shadow-rgb), transparent var(--opacity)) !important;
+
+
+           animation: background-pan 3s linear infinite ;
+        }
+
+         .instance-discovered::after {
+
+            content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Cpath fill='%23FFAC33' d='M34.347 16.893l-8.899-3.294-3.323-10.891c-.128-.42-.517-.708-.956-.708-.439 0-.828.288-.956.708l-3.322 10.891-8.9 3.294c-.393.146-.653.519-.653.938 0 .418.26.793.653.938l8.895 3.293 3.324 11.223c.126.424.516.715.959.715.442 0 .833-.291.959-.716l3.324-11.223 8.896-3.293c.391-.144.652-.518.652-.937 0-.418-.261-.792-.653-.938z'/%3E%3Cpath fill='%23FFCC4D' d='M14.347 27.894l-2.314-.856-.9-3.3c-.118-.436-.513-.738-.964-.738-.451 0-.846.302-.965.737l-.9 3.3-2.313.856c-.393.145-.653.52-.653.938 0 .418.26.793.653.938l2.301.853.907 3.622c.112.444.511.756.97.756.459 0 .858-.312.97-.757l.907-3.622 2.301-.853c.393-.144.653-.519.653-.937 0-.418-.26-.793-.653-.937zM10.009 6.231l-2.364-.875-.876-2.365c-.145-.393-.519-.653-.938-.653-.418 0-.792.26-.938.653l-.875 2.365-2.365.875c-.393.146-.653.52-.653.938 0 .418.26.793.653.938l2.365.875.875 2.365c.146.393.52.653.938.653.418 0 .792-.26.938-.653l.875-2.365 2.365-.875c.393-.146.653-.52.653-.938 0-.418-.26-.792-.653-.938z'/%3E%3C/svg%3E");
+            width  : 30px;
+            height : 30px;
+
+            position : absolute;
+            top      : 0;
+            left     : 0;
+            transform: translate(-50%, -50%);
+              }
+
+
+
+        .instance-discovered-text{
+
+        --main-color  : rgb(45,255,196);
+        --second-color: #167fc6;
+
+        -webkit-animation      : background-pan 3s linear infinite !important;
+        animation              : background-pan 3s linear infinite !important;
+        background             : linear-gradient( to right,  var(--main-color), var(--second-color),var(--main-color) ) !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        -moz-background-clip   : text;
+        -moz-text-fill-color   : transparent;
+        -moz-animation         : background-pan 3s linear infinite !important;
+        white-space            : nowrap !important;
+        z-index                : 200;
+        font-weight            : bold !important;
+        font-size              : 16px !important;
+        width                  : 200px !important;
+        background-size        : 200% !important;
+
+        }
+
+       .instance-discovered-emoji {
+             filter: none !important;
+
+        ;}
+             .noneStyle
+           {
+
+          box-shadow        : none !important;
+          -webkit-box-shadow: none !important;
+          -moz-box-shadow   : none !important;
+
+           }
+
+        .item-discovered {
+            --x-offset  : 0px;
+            --y-offset  : 0px;
+            --radius    : 5px;
+            --spread    : 4px;
+            --shadow-rgb: 255, 240, 31;
+            --opacity   : 0.2;
+            border-width: 1px !important;
+
+            -webkit-box-shadow: var(--x-offset) var(--y-offset) var(--radius) var(--spread) rgba(var(--shadow-rgb), var(--opacity));
+            -moz-box-shadow   : var(--x-offset) var(--y-offset) var(--radius) var(--spread) rgba(var(--shadow-rgb), var(--opacity));
+            box-shadow        : var(--x-offset) var(--y-offset) var(--radius) var(--spread) rgba(var(--shadow-rgb), var(--opacity));
+            border-color      : rgba(var(--shadow-rgb), 0.4) !important;
+        }
+
+             select {appearance: none;
+             color           : var(--text-color);
+             background-color: var(--background-color);
+             font-family     : Roboto, sans-serif;
+             font-size       : 15.4px;
+
+             }
+              option {appearance: none;
+              color           : var(--text-color);
+              background-color: var(--background-color);
+              font-family     : Roboto, sans-serif;
+              font-size       : 15.4px;
+              }
+
+              select:focus {appearance: none;
+              background : var(--instance-bg-hover);
+              border     : 1px solid var(--instance-border-hover);
+              color      : var(--text-color);
+              font-family: Roboto, sans-serif;
+              font-size  : 15.4px;
+
+              }
+            select: focus > option: hover
+              {
+              background : var(--instance-bg-hover);
+              border     : 1px solid var(--instance-border-hover);
+              color      : var(--text-color);
+              font-family: Roboto, sans-serif;
+              font-size  : 15.4px;
+              }
+          .theme_settings_cont
+              {
+
+              background : var(--background-color);
+              border     : 1px solid var(--border-color);
+              color      : var(--text-color);
+              font-family: Roboto, sans-serif;
+              font-size  : 15.4px;
+              }
+
+           @keyframes spin {
+                0% { --bg-angle: 0.00deg; }
+                1% { --bg-angle: 3.60deg; }
+                2% { --bg-angle: 7.20deg; }
+                3% { --bg-angle: 10.80deg; }
+                4% { --bg-angle: 14.40deg; }
+                5% { --bg-angle: 18.00deg; }
+                6% { --bg-angle: 21.60deg; }
+                7% { --bg-angle: 25.20deg; }
+                8% { --bg-angle: 28.80deg; }
+                9% { --bg-angle: 32.40deg; }
+                10% { --bg-angle: 36.00deg; }
+                11% { --bg-angle: 39.60deg; }
+                12% { --bg-angle: 43.20deg; }
+                13% { --bg-angle: 46.80deg; }
+                14% { --bg-angle: 50.40deg; }
+                15% { --bg-angle: 54.00deg; }
+                16% { --bg-angle: 57.60deg; }
+                17% { --bg-angle: 61.20deg; }
+                18% { --bg-angle: 64.80deg; }
+                19% { --bg-angle: 68.40deg; }
+                20% { --bg-angle: 72.00deg; }
+                21% { --bg-angle: 75.60deg; }
+                22% { --bg-angle: 79.20deg; }
+                23% { --bg-angle: 82.80deg; }
+                24% { --bg-angle: 86.40deg; }
+                25% { --bg-angle: 90.00deg; }
+                26% { --bg-angle: 93.60deg; }
+                27% { --bg-angle: 97.20deg; }
+                28% { --bg-angle: 100.80deg; }
+                29% { --bg-angle: 104.40deg; }
+                30% { --bg-angle: 108.00deg; }
+                31% { --bg-angle: 111.60deg; }
+                32% { --bg-angle: 115.20deg; }
+                33% { --bg-angle: 118.80deg; }
+                34% { --bg-angle: 122.40deg; }
+                35% { --bg-angle: 126.00deg; }
+                36% { --bg-angle: 129.60deg; }
+                37% { --bg-angle: 133.20deg; }
+                38% { --bg-angle: 136.80deg; }
+                39% { --bg-angle: 140.40deg; }
+                40% { --bg-angle: 144.00deg; }
+                41% { --bg-angle: 147.60deg; }
+                42% { --bg-angle: 151.20deg; }
+                43% { --bg-angle: 154.80deg; }
+                44% { --bg-angle: 158.40deg; }
+                45% { --bg-angle: 162.00deg; }
+                46% { --bg-angle: 165.60deg; }
+                47% { --bg-angle: 169.20deg; }
+                48% { --bg-angle: 172.80deg; }
+                49% { --bg-angle: 176.40deg; }
+                50% { --bg-angle: 180.00deg; }
+                51% { --bg-angle: 183.60deg; }
+                52% { --bg-angle: 187.20deg; }
+                53% { --bg-angle: 190.80deg; }
+                54% { --bg-angle: 194.40deg; }
+                55% { --bg-angle: 198.00deg; }
+                56% { --bg-angle: 201.60deg; }
+                57% { --bg-angle: 205.20deg; }
+                58% { --bg-angle: 208.80deg; }
+                59% { --bg-angle: 212.40deg; }
+                60% { --bg-angle: 216.00deg; }
+                61% { --bg-angle: 219.60deg; }
+                62% { --bg-angle: 223.20deg; }
+                63% { --bg-angle: 226.80deg; }
+                64% { --bg-angle: 230.40deg; }
+                65% { --bg-angle: 234.00deg; }
+                66% { --bg-angle: 237.60deg; }
+                67% { --bg-angle: 241.20deg; }
+                68% { --bg-angle: 244.80deg; }
+                69% { --bg-angle: 248.40deg; }
+                70% { --bg-angle: 252.00deg; }
+                71% { --bg-angle: 255.60deg; }
+                72% { --bg-angle: 259.20deg; }
+                73% { --bg-angle: 262.80deg; }
+                74% { --bg-angle: 266.40deg; }
+                75% { --bg-angle: 270.00deg; }
+                76% { --bg-angle: 273.60deg; }
+                77% { --bg-angle: 277.20deg; }
+                78% { --bg-angle: 280.80deg; }
+                79% { --bg-angle: 284.40deg; }
+                80% { --bg-angle: 288.00deg; }
+                81% { --bg-angle: 291.60deg; }
+                82% { --bg-angle: 295.20deg; }
+                83% { --bg-angle: 298.80deg; }
+                84% { --bg-angle: 302.40deg; }
+                85% { --bg-angle: 306.00deg; }
+                86% { --bg-angle: 309.60deg; }
+                87% { --bg-angle: 313.20deg; }
+                88% { --bg-angle: 316.80deg; }
+                89% { --bg-angle: 320.40deg; }
+                90% { --bg-angle: 324.00deg; }
+                91% { --bg-angle: 327.60deg; }
+                92% { --bg-angle: 331.20deg; }
+                93% { --bg-angle: 334.80deg; }
+                94% { --bg-angle: 338.40deg; }
+                95% { --bg-angle: 342.00deg; }
+                96% { --bg-angle: 345.60deg; }
+                97% { --bg-angle: 349.20deg; }
+                98% { --bg-angle: 352.80deg; }
+                99% { --bg-angle: 356.40deg; }
+        }`;
+
+         let style = document.createElement('style');
+         style.appendChild(document.createTextNode(css.trim()));
+         document.getElementsByTagName('head')[0].appendChild(style);
+
+
+
+      }
+
+
+
+
+
+          function set_up_color_settings_button()
+          {
+
+
+            let settings                 = document.querySelector(".settings-content");
+            let theme_settings_container = document.createElement("div");
+            let dropdown                 = document.createElement("select");
+            ThemeButton              = theme_settings_container;
+            console.log("seetings",settings);
+
+
+            if(settings==null)
+              {
+
+
+                 settings                                = document.querySelector(".container");
+                 theme_settings_container.style.position = 'absolute';
+                 theme_settings_container.style.left     = '20px';
+                 theme_settings_container.style.top      = '100px';
+                 theme_settings_container.style.width    = '300px';
+                 theme_settings_container.style.height   = '50px';
+                 theme_settings_container.classList.add('theme_settings_cont');
+
+
+
+              }
+             else
+              {
+                 theme_settings_container.classList.add('setting');
+
+
+              }
+
+            theme_settings_container.appendChild(document.createTextNode('Theme Settings 🎨'));
+            dropdown.id = "dropdown_theme";
+
+            for(let m of modes)
+              {
+
+                let option             = document.createElement("option");
+                option.textContent = m;
+                option.value = m;
+                dropdown.appendChild(option);
+
+
+
+              }
+
+            dropdown.onchange = function()
+            {
+              let drp    = document.getElementById("dropdown_theme");
+              mode   = drp.selectedIndex;
+              hidden = true;
+              theme_settings_container.removeChild(dropdown);
+              switchTheStyle();
+
+
+            }
+            dropdown.selectedIndex = mode;
+            dropMenu               = dropdown;
+            theme_settings_container.addEventListener("click",function(){
+             if(hidden==true)
+               {
+                  theme_settings_container.appendChild(dropdown);
+                  hidden = false;
+
+               }
+
+
+             });
+
+        settings.appendChild(theme_settings_container);
+        switchTheStyle();
+
+
+
+          }
+
+            window.addEventListener('load', async () => {
+              console.log("Welcome to themes");
+              injectCSS();
+              initColors();
+              set_up_color_settings_button();
+
+                }, false);
+        })();
